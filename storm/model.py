@@ -38,7 +38,14 @@ class Model(object):
         return_obj = None
         if obj is not None:
             return_obj = class_name()
-            return_obj.__dict__ = obj
+
+            # set all properties
+            for key in obj:
+                setattr(return_obj, key, obj[key])
+
+            # make sure the primary key is set to a string
+            setattr(return_obj, return_obj._primary_key,
+                    str(getattr(return_obj, return_obj._primary_key)))
 
         if callback is None:
             raise gen.Return(return_obj)
@@ -53,6 +60,7 @@ class Model(object):
 
         if not hasattr(self, self._primary_key):
             result = yield Model.db.insert(self._table, to_save)
+            setattr(self, self._primary_key, str(result))
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
             result = yield Model.db.update(self._table, to_save)
