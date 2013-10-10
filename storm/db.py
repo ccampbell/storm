@@ -1,6 +1,7 @@
 import motor
 import error
 from tornado import gen
+from bson.objectid import ObjectId
 
 
 class Connection(object):
@@ -33,15 +34,18 @@ class MongoDb(Database):
         self.is_connected = True
 
     @gen.coroutine
-    def select_one(self, table, **args):
+    def select_one(self, table, **kwargs):
         self.connect()
 
-        result = yield motor.Op(getattr(self.db, table).find_one, args)
+        if '_id' in kwargs:
+            kwargs['_id'] = ObjectId(kwargs['_id'])
+
+        result = yield motor.Op(getattr(self.db, table).find_one, **kwargs)
 
         if result is None:
-            raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, args))
+            raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, kwargs))
 
-        callback = args.get('callback')
+        callback = kwargs.get('callback')
 
         if callback is None:
             raise gen.Return(result)
