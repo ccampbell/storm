@@ -40,7 +40,7 @@ class MongoDb(Database):
         if '_id' in kwargs:
             kwargs['_id'] = ObjectId(kwargs['_id'])
 
-        result = yield motor.Op(getattr(self.db, table).find_one, **kwargs)
+        result = yield motor.Op(getattr(self.db, table).find_one, kwargs)
 
         if result is None:
             raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, kwargs))
