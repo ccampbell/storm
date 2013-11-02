@@ -74,3 +74,18 @@ class MongoDb(Database):
             raise gen.Return(result)
 
         callback(result)
+
+    @gen.coroutine
+    def delete(self, table, primary_key_field, primary_key_value, callback=None):
+        self.connect()
+
+        to_delete = {
+            primary_key_field: ObjectId(primary_key_value)
+        }
+
+        result = yield motor.Op(self.db[table].remove, to_delete)
+
+        if callback is None:
+            raise gen.Return(result)
+
+        callback(result)

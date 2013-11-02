@@ -69,3 +69,16 @@ class Model(object):
             raise gen.Return(result)
 
         callback(result)
+
+    @gen.coroutine
+    def delete(self, callback=None):
+        result = False
+
+        if hasattr(self, self._primary_key):
+            result = yield Model.db.delete(self._table, self._primary_key,
+                                           getattr(self, self._primary_key))
+
+        if callback is None:
+            raise gen.Return(result)
+
+        callback(result)
