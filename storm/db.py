@@ -54,9 +54,21 @@ class MongoDb(Database):
 
     @gen.coroutine
     def insert(self, table, data, callback=None):
+        result = yield self.update(table, data, callback)
+
+        if callback is None:
+            raise gen.Return(result)
+
+        callback(result)
+
+    @gen.coroutine
+    def update(self, table, data, callback=None):
         self.connect()
 
-        result = yield motor.Op(self.db[table].insert, data)
+        if '_id' in data:
+            data['_id'] = ObjectId(data['_id'])
+
+        result = yield motor.Op(self.db[table].save, data)
 
         if callback is None:
             raise gen.Return(result)
