@@ -22,11 +22,31 @@ class Model(object):
         Model.db = database
 
     @classmethod
-    @gen.coroutine
-    def find(class_name, **args):
+    def get_table(class_name):
         table = class_name.__name__.lower()
         if hasattr(class_name, '_table'):
             table = getattr(class_name, '_table')
+
+        return table
+
+    @classmethod
+    def _convert_object(class_name, obj):
+        return_obj = class_name()
+
+        # set all properties
+        for key in obj:
+            setattr(return_obj, key, obj[key])
+
+        # make sure the primary key is set to a string
+        setattr(return_obj, return_obj._primary_key,
+                str(getattr(return_obj, return_obj._primary_key)))
+
+        return return_obj
+
+    @classmethod
+    @gen.coroutine
+    def find(class_name, **args):
+        table = getattr(class_name, 'get_table')()
 
         callback = None
         if 'callback' in args:
@@ -37,15 +57,7 @@ class Model(object):
 
         return_obj = None
         if obj is not None:
-            return_obj = class_name()
-
-            # set all properties
-            for key in obj:
-                setattr(return_obj, key, obj[key])
-
-            # make sure the primary key is set to a string
-            setattr(return_obj, return_obj._primary_key,
-                    str(getattr(return_obj, return_obj._primary_key)))
+            return_obj = getattr(class_name, '_convert_object')(obj)
 
         if callback is None:
             raise gen.Return(return_obj)
