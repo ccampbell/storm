@@ -53,6 +53,35 @@ class MongoDb(Database):
         callback(result)
 
     @gen.coroutine
+    def select_multiple(self, table, data, **kwargs):
+        cursor = getattr(self.db, table).find(data)
+
+        # handle pagination
+        if 'page' in kwargs:
+            page = kwargs['page']
+            page_size = kwargs.get('page_size', 10)
+            offset = (page - 1) * page_size
+            cursor.limit(page_size)
+            cursor.skip(offset)
+
+        # default sort to newest first
+        sort = kwargs.get('sort', [('_id', 0)])
+        cursor.sort(sort)
+
+        data = []
+        while (yield cursor.fetch_next):
+            data.append(cursor.next_object())
+
+        total_count = yield motor.Op(cursor.count)
+
+        callback = kwargs.get('callback')
+
+        if callback is None:
+            raise gen.Return([data, total_count])
+
+        callback([data, total_count])
+
+    @gen.coroutine
     def insert(self, table, data, callback=None):
         result = yield self.update(table, data, callback)
 
