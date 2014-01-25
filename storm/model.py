@@ -1,6 +1,7 @@
 from db import Database
 from error import StormError
 from tornado import gen
+from collection import Collection
 
 class Model(object):
     db = None
@@ -42,6 +43,34 @@ class Model(object):
                 str(getattr(return_obj, return_obj._primary_key)))
 
         return return_obj
+
+    @classmethod
+    @gen.coroutine
+    def find_all(class_name, data, **args):
+        table = getattr(class_name, 'get_table')()
+
+        callback = None
+        if 'callback' in args:
+            callback = args['callback']
+            del(args['callback'])
+
+        objects, total_count = yield Model.db.select_multiple(table, data, **args)
+
+        as_dict = args.get('as_dict', False)
+
+        collection = Collection()
+        # collection.page = objects.page
+        # collection.page_size = objects.page_size
+        collection.total_count = total_count
+
+        for obj in objects:
+            new_obj = getattr(class_name, '_convert_object')(obj)
+            collection.append(new_obj if not as_dict else new_obj.__dict__)
+
+        if callback is None:
+            raise gen.Return(collection)
+
+        callback(collection)
 
     @classmethod
     @gen.coroutine
