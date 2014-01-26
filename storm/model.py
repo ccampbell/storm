@@ -59,8 +59,11 @@ class Model(object):
         as_dict = args.get('as_dict', False)
 
         collection = Collection()
-        # collection.page = objects.page
-        # collection.page_size = objects.page_size
+
+        if 'page' in args:
+            collection.page = args['page']
+            collection.page_size = args.get('page_size', 10)
+
         collection.total_count = total_count
 
         for obj in objects:
