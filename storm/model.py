@@ -4,6 +4,8 @@ from tornado import gen
 from storm.collection import Collection
 
 class Model(object):
+    TYPE_MONGO_DB = 'mongodb'
+    TYPE_MYSQL = 'mysql'
     db = None
 
     def __init__(self):
@@ -22,6 +24,10 @@ class Model(object):
 
         Model.db = database
 
+        if (not hasattr(Model, '_primary_key') and
+            Model.get_database_type() == Model.TYPE_MYSQL):
+            Model._primary_key = 'id'
+
     @classmethod
     def get_table(class_name):
         table = class_name.__name__.lower()
@@ -29,6 +35,11 @@ class Model(object):
             table = getattr(class_name, '_table')
 
         return table
+
+    @staticmethod
+    def get_database_type(db_object=None):
+        name = type(Model.db) if db_object is None else type(db_object)
+        return name.__name__.lower()
 
     @classmethod
     def _convert_object(class_name, obj):
@@ -39,8 +50,10 @@ class Model(object):
             setattr(return_obj, key, obj[key])
 
         # make sure the primary key is set to a string
-        setattr(return_obj, return_obj._primary_key,
-                str(getattr(return_obj, return_obj._primary_key)))
+        # for mongodb
+        if Model.get_database_type() == Model.TYPE_MONGO_DB:
+            setattr(return_obj, return_obj._primary_key,
+                    str(getattr(return_obj, return_obj._primary_key)))
 
         return return_obj
 
@@ -104,7 +117,11 @@ class Model(object):
 
         if not hasattr(self, self._primary_key):
             result = yield Model.db.insert(self._table, to_save)
-            setattr(self, self._primary_key, str(result))
+
+            if Model.get_database_type() == Model.TYPE_MONGO_DB:
+                result = str(result)
+
+            setattr(self, self._primary_key, result)
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
             result = yield Model.db.update(self._table, to_save)
