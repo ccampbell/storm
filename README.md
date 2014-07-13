@@ -12,7 +12,8 @@ This is the result of a few hours of work so I would not recommend using it in p
 
 ```python
 from storm.model import Model
-from storm.db import Connection, MongoDb
+from storm.db import Connection
+from storm.mongodb import MongoDb
 from tornado.gen import coroutine
 from tornado.ioloop import IOLoop
 
