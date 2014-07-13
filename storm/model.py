@@ -1,7 +1,7 @@
-from db import Database
-from error import StormError
+from storm.db import Database
+from storm.error import StormError
 from tornado import gen
-from collection import Collection
+from storm.collection import Collection
 
 class Model(object):
     db = None
