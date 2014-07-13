@@ -2,7 +2,7 @@
 
 ### A simple ORM for Tornado
 
-Storm stands for **S**imple **T**ornado **O**bject **R**elational **M**apping.
+Storm stands for **S** imple **T** ornado **O** bject **R** elational **M** apping.
 
 It uses Mongo DB for the backend, but it should be swappable for any storage by implementing the `storm.db.Database` interface.
 
