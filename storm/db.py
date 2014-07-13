@@ -5,10 +5,12 @@ from bson.objectid import ObjectId
 
 
 class Connection(object):
-    def __init__(self, host='localhost', port=None, db=None):
+    def __init__(self, host='localhost', port=None, database=None, user=None, password=None):
         self.host = host
         self.port = port
-        self.db = db
+        self.database = database
+        self.user = user
+        self.password = password
 
 
 class Database(object):
@@ -30,7 +32,7 @@ class MongoDb(Database):
             self.connection.port
         ).open_sync()
 
-        self.db = self.motor_client[self.connection.db]
+        self.db = self.motor_client[self.connection.database]
         self.is_connected = True
 
     @gen.coroutine
