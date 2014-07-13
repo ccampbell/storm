@@ -24,7 +24,7 @@ def main():
     db = MongoDb(Connection(
                     host='localhost',
                     port=27017,
-                    db='test'))
+                    database='test'))
 
     db.connect()
 
