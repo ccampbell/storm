@@ -1,5 +1,5 @@
 import motor
-import error
+from storm import error
 from tornado import gen
 from bson.objectid import ObjectId
 
