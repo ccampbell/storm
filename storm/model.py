@@ -10,12 +10,29 @@ class Model(object):
 
     def __init__(self):
         self._type = type(self).__name__.lower()
+        self._changes = []
 
         if not hasattr(self, '_table'):
             self._table = self._type
 
         if not hasattr(self, '_primary_key'):
             self._primary_key = '_id'
+
+    def __setattr__(self, name, value):
+        if name[0] == '_':
+            self.__dict__[name] = value
+            return
+
+        if name in self.__dict__:
+            old_value = self.__dict__[name]
+            if value != old_value:
+                self._changes.append(name)
+
+            self.__dict__[name] = value
+            return
+
+        self._changes.append(name)
+        self.__dict__[name] = value
 
     @staticmethod
     def set_db(database):
@@ -54,6 +71,9 @@ class Model(object):
         if Model.get_database_type() == Model.TYPE_MONGO_DB:
             setattr(return_obj, return_obj._primary_key,
                     str(getattr(return_obj, return_obj._primary_key)))
+
+        # reset changes
+        return_obj._changes = []
 
         return return_obj
 
@@ -124,7 +144,9 @@ class Model(object):
             setattr(self, self._primary_key, result)
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
-            result = yield Model.db.update(self._table, to_save)
+            result = yield Model.db.update(self._table, to_save, self._changes)
+
+        self._changes = []
 
         if callback is None:
             raise gen.Return(result)

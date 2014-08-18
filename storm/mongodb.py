@@ -76,7 +76,7 @@ class MongoDb(Database):
         callback(result)
 
     @gen.coroutine
-    def update(self, table, data, callback=None):
+    def update(self, table, data, changes, callback=None):
         self.connect()
 
         if '_id' in data:
