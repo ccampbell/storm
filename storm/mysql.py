@@ -39,10 +39,10 @@ class MySql(Database):
             value = value.decode('utf-8')
 
         if isinstance(value, float):
-            return "'%s'" % value
+            return str(value)
 
         try:
-            value = int(value)
+            value = str(int(value))
         except:
             value = "'%s'" % asynctorndb.escape_string(value)
 
