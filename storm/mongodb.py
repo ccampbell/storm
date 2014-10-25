@@ -1,7 +1,7 @@
 import motor
 from tornado import gen
 from bson.objectid import ObjectId
-from storm.db import Database
+from storm.db import Database, ConnectionPool
 from storm import error
 
 
@@ -103,3 +103,8 @@ class MongoDb(Database):
             raise gen.Return(result)
 
         callback(result)
+
+
+class ConnectionPool(ConnectionPool):
+    def get_db_class(self):
+        return MongoDb

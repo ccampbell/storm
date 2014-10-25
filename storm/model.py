@@ -1,5 +1,5 @@
 import inspect
-from storm.db import Database
+from storm.db import Database, ConnectionPool
 from storm.error import StormError
 from tornado import gen
 from tornado.web import RequestHandler
@@ -39,8 +39,11 @@ class Model(object):
 
     @staticmethod
     def set_db(database):
-        if not isinstance(database, Database):
-            raise StormError('database must be instance of storm.db.Database')
+        if (not isinstance(database, Database) and
+            not isinstance(database, ConnectionPool)):
+
+            raise StormError("""database must be instance of storm.db.Database
+                or storm.db.ConnectionPool""")
 
         Model.db = database
 
@@ -62,6 +65,9 @@ class Model(object):
                 if instance and isinstance(instance, RequestHandler) and hasattr(instance, 'db'):
                     return instance.db
 
+        if isinstance(Model.db, ConnectionPool):
+            return Model.db.get_db()
+
         return Model.db
 
     @classmethod
@@ -75,6 +81,9 @@ class Model(object):
     @staticmethod
     def get_database_type(db_object=None):
         name = type(Model.db) if db_object is None else type(db_object)
+        if db_object is None and isinstance(Model.db, ConnectionPool):
+            name = Model.db.get_db_class()
+
         return name.__name__.lower()
 
     @classmethod

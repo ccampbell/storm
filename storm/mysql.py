@@ -2,7 +2,7 @@ import sys
 import asynctorndb
 import datetime
 from tornado import gen
-from storm.db import Database
+from storm.db import Database, ConnectionPool
 from storm import error
 
 
@@ -128,3 +128,7 @@ class MySql(Database):
             raise gen.Return(result)
 
         callback(result)
+
+class ConnectionPool(ConnectionPool):
+    def get_db_class(self):
+        return MySql
