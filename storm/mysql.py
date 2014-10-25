@@ -22,6 +22,16 @@ class MySql(Database):
 
         callback(True)
 
+    @gen.coroutine
+    def close(self, callback=None):
+        if self.is_connected:
+            yield self.db.close()
+            self.is_connected = False
+
+        if callback is None:
+            raise gen.Return(True)
+
+        callback(True)
 
     @staticmethod
     def _quote(value):
