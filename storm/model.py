@@ -1,12 +1,15 @@
+import inspect
 from storm.db import Database
 from storm.error import StormError
 from tornado import gen
+from tornado.web import RequestHandler
 from storm.collection import Collection
 
 class Model(object):
     TYPE_MONGO_DB = 'mongodb'
     TYPE_MYSQL = 'mysql'
     db = None
+    check_for_handler = False
 
     def __init__(self):
         self._type = type(self).__name__.lower()
@@ -44,6 +47,22 @@ class Model(object):
         if (not hasattr(Model, '_primary_key') and
             Model.get_database_type() == Model.TYPE_MYSQL):
             Model._primary_key = 'id'
+
+    @staticmethod
+    def get_db():
+        if Model.check_for_handler:
+
+            # loop over where this came from and if it came from an instance of
+            # tornado.web.RequestHandler that has a db property on it then use
+            # that.  this isn't really great, but it is a huge convenience to
+            # be able to tie a db connection to a request if you want
+            for trace in inspect.stack()[3:]:
+                local_vars = trace[0].f_locals
+                instance = local_vars.get('self', None)
+                if instance and isinstance(instance, RequestHandler) and hasattr(instance, 'db'):
+                    return instance.db
+
+        return Model.db
 
     @classmethod
     def get_table(class_name):
@@ -87,7 +106,7 @@ class Model(object):
             callback = args['callback']
             del(args['callback'])
 
-        objects, total_count = yield Model.db.select_multiple(table, data, **args)
+        objects, total_count = yield Model.get_db().select_multiple(table, data, **args)
 
         as_dict = args.get('as_dict', False)
 
@@ -118,7 +137,7 @@ class Model(object):
             callback = args['callback']
             del(args['callback'])
 
-        obj = yield Model.db.select_one(table, **args)
+        obj = yield Model.get_db().select_one(table, **args)
 
         return_obj = None
         if obj is not None:
@@ -136,7 +155,7 @@ class Model(object):
             to_save[k] = self.__dict__[k]
 
         if not hasattr(self, self._primary_key):
-            result = yield Model.db.insert(self._table, to_save)
+            result = yield Model.get_db().insert(self._table, to_save)
 
             if Model.get_database_type() == Model.TYPE_MONGO_DB:
                 result = str(result)
@@ -144,7 +163,7 @@ class Model(object):
             setattr(self, self._primary_key, result)
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
-            result = yield Model.db.update(self._table, to_save, self._changes)
+            result = yield Model.get_db().update(self._table, to_save, self._changes)
 
         self._changes = []
 
@@ -158,7 +177,7 @@ class Model(object):
         result = False
 
         if hasattr(self, self._primary_key):
-            result = yield Model.db.delete(self._table, self._primary_key,
+            result = yield Model.get_db().delete(self._table, self._primary_key,
                                            getattr(self, self._primary_key))
 
         if callback is None:
