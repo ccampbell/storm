@@ -85,6 +85,8 @@ class MySql(Database):
 
     @gen.coroutine
     def insert(self, table, data, callback=None):
+        yield self.connect()
+
         fields = []
         values = []
         for key in data:
@@ -109,6 +111,8 @@ class MySql(Database):
     def update(self, table, data, changes, callback=None):
         if len(changes) == 0:
             raise gen.Return(False)
+
+        yield self.connect()
 
         if 'modified_on' in data:
             changes.append('modified_on')
