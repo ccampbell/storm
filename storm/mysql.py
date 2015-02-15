@@ -84,6 +84,39 @@ class MySql(Database):
 
 
     @gen.coroutine
+    def select_multiple(self, table, query, **kwargs):
+        yield self.connect()
+
+        query.bind(':table', table)
+
+        page = kwargs.get('page')
+        if page:
+            page_size = kwargs.get('page_size', 10)
+            query.limit = page_size
+            query.offset = (page - 1) * page_size
+
+        raw_sql = query.sql
+
+        total_count = 0
+        tasks = [self.db.query(raw_sql)]
+        if page:
+            tasks.append(self.db.query(query.count_sql))
+
+        results = yield tasks
+
+        data = results[0]
+        total_count = len(data)
+        if len(results) == 2:
+            total_count = results[1][0]['count']
+
+        callback = kwargs.get('callback', None)
+        if callback is None:
+            raise gen.Return([data, total_count])
+
+        callback([data, total_count])
+
+
+    @gen.coroutine
     def insert(self, table, data, callback=None):
         yield self.connect()
 
@@ -132,6 +165,41 @@ class MySql(Database):
             raise gen.Return(result)
 
         callback(result)
+
+
+class Query(object):
+    def __init__(self, sql):
+        self._sql = sql
+        self.count_sql = None
+        self.to_bind = {}
+        self.limit = None
+        self.offset = None
+
+    def bind(self, key, value):
+        self.to_bind[key] = value
+        return self
+
+    @property
+    def sql(self):
+        sql = self._sql
+        if ':table' in self.to_bind:
+            sql = sql.replace(':table', "`%s`" % self.to_bind[':table'])
+            del(self.to_bind[':table'])
+
+        for key in self.to_bind:
+            sql = sql.replace(key, MySql._quote(self.to_bind[key]))
+
+        if self.limit:
+            self.count_sql = "SELECT count(*) count FROM %s" % sql.split(' FROM ')[1]
+
+        if self.limit:
+            sql += " LIMIT %d" % self.limit
+
+        if self.offset:
+            sql += " OFFSET %d" % self.offset
+
+        return sql
+
 
 class ConnectionPool(ConnectionPool):
     def get_db_class(self):
