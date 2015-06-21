@@ -180,13 +180,16 @@ class Model(object):
 
             to_save[k] = val
 
-        if not hasattr(self, self._primary_key):
+        primary_key_not_included = not hasattr(self, self._primary_key)
+        primary_key_was_set = self._primary_key in self._changes
+        if primary_key_not_included or primary_key_was_set:
             result = yield Model.get_db().insert(self._table, to_save)
 
             if Model.get_database_type() == Model.TYPE_MONGO_DB:
                 result = str(result)
 
-            setattr(self, self._primary_key, result)
+            if primary_key_not_included:
+                setattr(self, self._primary_key, result)
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
             result = yield Model.get_db().update(self._table, to_save, self._changes, self._primary_key)
