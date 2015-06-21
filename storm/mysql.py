@@ -109,6 +109,9 @@ class MySql(Database):
         if len(results) == 2:
             total_count = results[1][0]['count']
 
+        data, filtered_out_count = query.apply_filters(data)
+        total_count -= filtered_out_count
+
         callback = kwargs.get('callback', None)
         if callback is None:
             raise gen.Return([data, total_count])
@@ -167,6 +170,41 @@ class MySql(Database):
         callback(result)
 
 
+class QueryFilter(object):
+    TYPE_EQUAL = '='
+    TYPE_NOT_EQUAL = '!='
+    TYPE_GREATER_THAN = '>'
+    TYPE_GREATER_THAN_OR_EQUAL = '>='
+    TYPE_LESS_THAN = '<'
+    TYPE_LESS_THAN_OR_EQUAL = '<='
+    TYPE_IN = 'in'
+    TYPE_NOT_IN = 'not in'
+
+    def __init__(self, key, comparison, value):
+        self.key = key
+        self.comparison = comparison.lower()
+        self.value = value
+
+    def matches(self, row):
+        if self.comparison == self.TYPE_EQUAL:
+            return row[self.key] == self.value
+        elif self.comparison == self.TYPE_NOT_EQUAL:
+            return row[self.key] != self.value
+        elif self.comparison == self.TYPE_GREATER_THAN:
+            return row[self.key] > self.value
+        elif self.comparison == self.TYPE_GREATER_THAN_OR_EQUAL:
+            return row[self.key] >= self.value
+        elif self.comparison == self.TYPE_LESS_THAN:
+            return row[self.key] < self.value
+        elif self.comparison == self.TYPE_LESS_THAN_OR_EQUAL:
+            return row[self.key] <= self.value
+        elif self.comparison == self.TYPE_IN:
+            return row[self.key] in self.value
+        elif self.comparison == self.TYPE_NOT_IN:
+            return row[self.key] not in self.value
+
+        return True
+
 class Query(object):
     def __init__(self, sql):
         self._sql = sql
@@ -174,10 +212,41 @@ class Query(object):
         self.to_bind = {}
         self.limit = None
         self.offset = None
+        self.filters = []
 
     def bind(self, key, value):
         self.to_bind[key] = value
         return self
+
+    def filter(self, key, comparison, value):
+        self.filters.append(QueryFilter(key, comparison, value))
+        return self
+
+    def all_filters_allow(self, row):
+        for f in self.filters:
+            if not f.matches(row):
+                return False
+
+        return True
+
+    def apply_filters(self, data):
+        if self.limit or self.offset:
+            raise error.StormError("""You cannot apply filters when using page
+                                   and page_size to limit the mysql data""")
+
+        if len(data) == 0 or len(self.filters) == 0:
+            return (data, 0)
+
+        new_data = []
+        num_removed = 0
+        for row in data:
+            if self.all_filters_allow(row):
+                new_data.append(row)
+                continue
+
+            num_removed += 1
+
+        return (new_data, num_removed)
 
     @property
     def sql(self):
