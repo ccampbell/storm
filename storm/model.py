@@ -189,7 +189,7 @@ class Model(object):
             setattr(self, self._primary_key, result)
         else:
             to_save[self._primary_key] = self.__dict__[self._primary_key]
-            result = yield Model.get_db().update(self._table, to_save, self._changes)
+            result = yield Model.get_db().update(self._table, to_save, self._changes, self._primary_key)
 
         self._changes = []
 

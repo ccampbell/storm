@@ -76,11 +76,11 @@ class MongoDb(Database):
         callback(result)
 
     @gen.coroutine
-    def update(self, table, data, changes, callback=None):
+    def update(self, table, data, changes, primary_key, callback=None):
         self.connect()
 
-        if '_id' in data:
-            data['_id'] = ObjectId(data['_id'])
+        if primary_key in data:
+            data[primary_key] = ObjectId(data[primary_key])
 
         result = yield motor.Op(self.db[table].save, data)
 

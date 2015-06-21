@@ -144,7 +144,7 @@ class MySql(Database):
         callback(insert_id)
 
     @gen.coroutine
-    def update(self, table, data, changes, callback=None):
+    def update(self, table, data, changes, primary_key, callback=None):
         if len(changes) == 0:
             raise gen.Return(False)
 
@@ -156,12 +156,12 @@ class MySql(Database):
 
         pairs = []
         for key in changes:
-            if key == 'id':
+            if key == primary_key:
                 continue
 
             pairs.append("`%s` = %s" % (key, MySql._quote(data[key])))
 
-        sql = "UPDATE `%s` SET %s WHERE id = %d" % (table, ', '.join(pairs), data['id'])
+        sql = "UPDATE `%s` SET %s WHERE `%s` = %s" % (table, ', '.join(pairs), primary_key, MySql._quote(data[primary_key]))
         result = yield self.db.execute(sql)
 
         if callback is None:
