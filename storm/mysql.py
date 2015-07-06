@@ -71,7 +71,7 @@ class MySql(Database):
 
         value = MySql._quote(value)
 
-        result = yield self.db.get("SELECT * FROM `%s` WHERE `%s` = %s" % (table, field, value))
+        result = yield self.db.get("SELECT * FROM `%s` WHERE BINARY `%s` = %s" % (table, field, value))
 
         if result is None:
             raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, kwargs))
