@@ -63,15 +63,12 @@ class MySql(Database):
     def select_one(self, table, **kwargs):
         yield self.connect()
 
-        field = None
-        value = None
+        where_bits = []
         for key in kwargs:
-            field = key
-            value = kwargs[key]
+            where_bits.append("`%s` = %s" % (key, MySql._quote(kwargs[key])))
 
-        value = MySql._quote(value)
-
-        result = yield self.db.get("SELECT * FROM `%s` WHERE BINARY `%s` = %s" % (table, field, value))
+        sql = "SELECT * FROM `%s` WHERE BINARY %s" % (table, ' AND BINARY '.join(where_bits))
+        result = yield self.db.get(sql)
 
         if result is None:
             raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, kwargs))
