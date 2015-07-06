@@ -155,15 +155,26 @@ class MySql(Database):
             data['modified_on'] = 'NOW()'
 
         pairs = []
+        compound_primary_key = isinstance(primary_key, list)
         for key in changes:
+            if compound_primary_key and key in primary_key:
+                continue
+
             if key == primary_key:
                 continue
 
             pairs.append("`%s` = %s" % (key, MySql._quote(data[key])))
 
-        sql = "UPDATE `%s` SET %s WHERE `%s` = %s" % (table, ', '.join(pairs), primary_key, MySql._quote(data[primary_key]))
-        result = yield self.db.execute(sql)
+        if not compound_primary_key:
+            primary_key = [primary_key]
 
+        where_bits = []
+        for key in primary_key:
+            where_bits.append("`%s` = %s" % (key, MySql._quote(data[key])))
+
+        sql = "UPDATE `%s` SET %s WHERE %s" % (table, ', '.join(pairs), ' AND '.join(where_bits))
+
+        result = yield self.db.execute(sql)
         if callback is None:
             raise gen.Return(result)
 

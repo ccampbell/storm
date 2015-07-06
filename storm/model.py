@@ -180,8 +180,17 @@ class Model(object):
 
             to_save[k] = val
 
-        primary_key_not_included = not hasattr(self, self._primary_key)
+        is_compound_primary_key = isinstance(self._primary_key, list)
+        primary_key_not_included = not is_compound_primary_key and not hasattr(self, self._primary_key)
         primary_key_was_set = self._primary_key in self._changes
+
+        if is_compound_primary_key:
+            primary_key_was_set = True
+            for field in self._primary_key:
+                if field not in self._changes:
+                    primary_key_was_set = False
+                    break
+
         if primary_key_not_included or primary_key_was_set:
             result = yield Model.get_db().insert(self._table, to_save)
 
@@ -191,7 +200,13 @@ class Model(object):
             if primary_key_not_included:
                 setattr(self, self._primary_key, result)
         else:
-            to_save[self._primary_key] = self.__dict__[self._primary_key]
+
+            # I do not remember why this is here, but I think it might be for
+            # mongodb where the primary key starts with an underscore and
+            # therefore won't be included in the to_save dictionary
+            if not is_compound_primary_key:
+                to_save[self._primary_key] = self.__dict__[self._primary_key]
+
             result = yield Model.get_db().update(self._table, to_save, self._changes, self._primary_key)
 
         self._changes = []
