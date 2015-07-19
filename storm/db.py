@@ -1,6 +1,6 @@
-from random import randrange
 import time
 from storm import error
+from tornado import gen
 
 
 class Connection(object):
@@ -17,26 +17,10 @@ class ConnectionPool(object):
         self.connection = connection
         self.count = count
         self.lifetime = lifetime
-        self.db_connections = [];
 
-    def create_new_connection(self):
-        cls = self.get_db_class()
-        instance = cls(self.connection)
-        self.db_connections.append(instance)
-        return instance
-
-    def get_db(self):
-        if len(self.db_connections) < self.count:
-            return self.create_new_connection()
-
-        index = randrange(0, len(self.db_connections))
-        connection = self.db_connections[index]
-        if (time.time() - connection.start_time) > self.lifetime:
-            removed = self.db_connections.pop(index)
-            removed.close()
-            return self.create_new_connection()
-
-        return self.db_connections[index]
+    @gen.coroutine
+    def get_db(self, callback=None):
+        raise NotImplementedError('The "get_db" method is not implemented')
 
     def get_db_class(self):
         raise NotImplementedError('The "get_db_class" method is not implemented')
