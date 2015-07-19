@@ -11,7 +11,7 @@ setup(
     url='https://github.com/ccampbell/storm',
     download_url='https://github.com/ccampbell/storm/archive/0.1.0.zip#egg=tornado-storm-0.1.0',
     license='MIT',
-    install_requires=['tornado >= 3.1', 'motor >= 0.1.1'],
+    install_requires=['tornado >= 4.0', 'tornado_mysql >= 0.5', 'motor >= 0.1.1'],
     packages=find_packages(),
     py_modules=['storm'],
     platforms=["any"]
