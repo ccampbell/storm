@@ -1,20 +1,26 @@
 import sys
-import asynctorndb
 import datetime
 from tornado import gen
 from storm.db import Database, ConnectionPool
 from storm import error
+import tornado_mysql
+from tornado_mysql.pools import Pool
+
+cursor_type = tornado_mysql.cursors.DictCursor
 
 
 class MySql(Database):
     @gen.coroutine
     def connect(self, callback=None):
         if not self.is_connected:
-            self.db = asynctorndb.Connect(user=self.connection.user,
-                                          passwd=self.connection.password,
-                                          database=self.connection.database)
+            self.db = Pool(
+                dict(user=self.connection.user,
+                     passwd=self.connection.password,
+                     db=self.connection.database,
+                     cursorclass=cursor_type),
+                max_idle_connections=1,
+                max_open_connections=1)
 
-            yield self.db.connect()
             self.is_connected = True
 
         if callback is None:
@@ -54,10 +60,9 @@ class MySql(Database):
         try:
             value = str(int(value))
         except:
-            value = "'%s'" % asynctorndb.escape_string(value)
+            value = "'%s'" % tornado_mysql.converters.escape_string(value)
 
         return value
-
 
     @gen.coroutine
     def select_one(self, table, **kwargs):
@@ -68,7 +73,9 @@ class MySql(Database):
             where_bits.append("`%s` = %s" % (key, MySql._quote(kwargs[key])))
 
         sql = "SELECT * FROM `%s` WHERE BINARY %s" % (table, ' AND BINARY '.join(where_bits))
-        result = yield self.db.get(sql)
+
+        cur = yield self.db.execute(sql)
+        result = cur.fetchone()
 
         if result is None:
             raise error.StormNotFoundError("Object of type: %s not found with args: %s" % (table, kwargs))
@@ -95,11 +102,16 @@ class MySql(Database):
         raw_sql = query.sql
 
         total_count = 0
-        tasks = [self.db.query(raw_sql)]
-        if page:
-            tasks.append(self.db.query(query.count_sql))
 
-        results = yield tasks
+        tasks = [self.db.execute(raw_sql)]
+        if page:
+            tasks.append(self.db.execute(query.count_sql))
+
+        cursors = yield tasks
+
+        results = [cursors[0].fetchall()]
+        if len(cursors) > 1:
+            results.append(cursors[1].fetchall())
 
         data = results[0]
         total_count = len(data)
@@ -133,7 +145,8 @@ class MySql(Database):
         # we are trying to insert has a % in it
         sql = sql.replace('%', '%%')
 
-        insert_id = yield self.db.execute(sql)
+        cur = yield self.db.execute(sql)
+        insert_id = cur.lastrowid
 
         if callback is None:
             raise gen.Return(insert_id)
@@ -279,5 +292,28 @@ class Query(object):
 
 
 class ConnectionPool(ConnectionPool):
+    def __init__(self, connection, count=10, lifetime=3600):
+        super(ConnectionPool, self).__init__(connection, count, lifetime)
+        db = MySql(self.connection)
+        db.db = Pool(
+            dict(user=connection.user,
+                 passwd=connection.password,
+                 db=connection.database,
+                 cursorclass=cursor_type),
+            max_idle_connections=self.count,
+            max_recycle_sec=self.lifetime,
+            max_open_connections=self.count+10)
+
+        db.is_connected = True
+        self._db = db
+
     def get_db_class(self):
         return MySql
+
+    @gen.coroutine
+    def get_db(self, callback=None):
+        if callback is not None:
+            callback(self._db)
+            return
+
+        raise gen.Return(self._db)
