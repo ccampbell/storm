@@ -56,7 +56,8 @@ class Model(object):
             Model._primary_key = 'id'
 
     @staticmethod
-    def get_db():
+    @gen.coroutine
+    def get_db(callback=None):
         if Model.check_for_handler:
 
             # loop over where this came from and if it came from an instance of
@@ -67,12 +68,25 @@ class Model(object):
                 local_vars = trace[0].f_locals
                 instance = local_vars.get('self', None)
                 if instance and isinstance(instance, RequestHandler) and hasattr(instance, 'db'):
-                    return instance.db
+                    if callback is not None:
+                        callback(instance.db)
+                        return
+
+                    raise gen.Return(instance.db)
 
         if isinstance(Model.db, ConnectionPool):
-            return Model.db.get_db()
+            db = yield Model.db.get_db()
+            if callback is not None:
+                callback(db)
+                return
 
-        return Model.db
+            raise gen.Return(db)
+
+        if callback is not None:
+            callback(Model.db)
+            return
+
+        raise gen.Return(Model.db)
 
     @classmethod
     def get_table(class_name):
@@ -125,7 +139,8 @@ class Model(object):
             callback = args['callback']
             del(args['callback'])
 
-        objects, total_count = yield Model.get_db().select_multiple(table, data, **args)
+        db = yield Model.get_db()
+        objects, total_count = yield db.select_multiple(table, data, **args)
 
         as_dict = args.get('as_dict', False)
 
@@ -156,7 +171,8 @@ class Model(object):
             callback = args['callback']
             del(args['callback'])
 
-        obj = yield Model.get_db().select_one(table, **args)
+        db = yield Model.get_db()
+        obj = yield db.select_one(table, **args)
 
         return_obj = None
         if obj is not None:
@@ -192,7 +208,8 @@ class Model(object):
                     break
 
         if primary_key_not_included or primary_key_was_set:
-            result = yield Model.get_db().insert(self._table, to_save)
+            db = yield Model.get_db()
+            result = yield db.insert(self._table, to_save)
 
             if Model.get_database_type() == Model.TYPE_MONGO_DB:
                 result = str(result)
@@ -207,7 +224,8 @@ class Model(object):
             if not is_compound_primary_key:
                 to_save[self._primary_key] = self.__dict__[self._primary_key]
 
-            result = yield Model.get_db().update(self._table, to_save, self._changes, self._primary_key)
+            db = yield Model.get_db()
+            result = yield db.update(self._table, to_save, self._changes, self._primary_key)
 
         self._changes = []
 
@@ -221,7 +239,8 @@ class Model(object):
         result = False
 
         if hasattr(self, self._primary_key):
-            result = yield Model.get_db().delete(self._table, self._primary_key,
+            db = yield Model.get_db()
+            result = yield db.delete(self._table, self._primary_key,
                                            getattr(self, self._primary_key))
 
         if callback is None:
