@@ -9,7 +9,7 @@ setup(
     author='Craig Campbell',
     author_email='iamcraigcampbell@gmail.com',
     url='https://github.com/ccampbell/storm',
-    download_url='https://github.com/ccampbell/storm/archive/0.1.0.zip#egg=tornado-storm-0.1.0',
+    download_url='https://github.com/ccampbell/storm/archive/%s.zip#egg=tornado-storm-%s' % (version, version),
     license='MIT',
     install_requires=['tornado >= 4.0', 'tornado_mysql >= 0.5', 'motor >= 0.1.1'],
     packages=find_packages(),
