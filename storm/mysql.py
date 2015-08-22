@@ -190,6 +190,23 @@ class MySql(Database):
 
         callback(result)
 
+    @gen.coroutine
+    def delete(self, table, primary_key_fields, primary_key_values, callback=None):
+        self.connect()
+
+        where_bits = []
+        for i, key in enumerate(primary_key_fields):
+            where_bits.append("`%s` = %s" % (key, MySql._quote(primary_key_values[i])))
+
+        result = False
+        if len(where_bits) > 0:
+            sql = "DELETE FROM `%s` WHERE %s" % (table, ' AND '.join(where_bits))
+            result = yield self.db.execute(sql)
+
+        if callback is None:
+            raise gen.Return(result)
+
+        callback(result)
 
 class QueryFilter(object):
     TYPE_EQUAL = '='

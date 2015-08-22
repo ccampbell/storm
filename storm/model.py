@@ -238,10 +238,21 @@ class Model(object):
     def delete(self, callback=None):
         result = False
 
-        if hasattr(self, self._primary_key):
+        is_compound_primary_key = isinstance(self._primary_key, list)
+        if is_compound_primary_key or hasattr(self, self._primary_key):
+            primary_key_fields = self._primary_key
+            primary_key_values = []
+
+            if not is_compound_primary_key:
+                primary_key_fields = [primary_key_fields]
+
+            for key in primary_key_fields:
+                primary_key_values.append(getattr(self, key))
+
             db = yield Model.get_db()
-            result = yield db.delete(self._table, self._primary_key,
-                                           getattr(self, self._primary_key))
+            result = yield db.delete(self._table,
+                                     primary_key_fields,
+                                     primary_key_values)
 
         if callback is None:
             raise gen.Return(result)
