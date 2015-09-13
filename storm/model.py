@@ -104,6 +104,18 @@ class Model(object):
 
         return name.__name__.lower()
 
+    @gen.coroutine
+    def before_save(self):
+        pass
+
+    @gen.coroutine
+    def after_save(self):
+        pass
+
+    @gen.coroutine
+    def after_load(self):
+        pass
+
     @classmethod
     def _convert_object(class_name, obj):
         return_obj = class_name()
@@ -154,6 +166,7 @@ class Model(object):
 
         for obj in objects:
             new_obj = getattr(class_name, '_convert_object')(obj)
+            yield new_obj.after_load()
             collection.append(new_obj if not as_dict else new_obj.__dict__)
 
         if callback is None:
@@ -177,6 +190,7 @@ class Model(object):
         return_obj = None
         if obj is not None:
             return_obj = getattr(class_name, '_convert_object')(obj)
+            yield return_obj.after_load()
 
         if callback is None:
             raise gen.Return(return_obj)
@@ -185,6 +199,8 @@ class Model(object):
 
     @gen.coroutine
     def save(self, callback=None):
+        yield self.before_save(self._changes)
+
         to_save = {}
         for k in [key for key in self.__dict__ if not key[0] == '_']:
             val = self.__dict__[k]
@@ -227,6 +243,7 @@ class Model(object):
             db = yield Model.get_db()
             result = yield db.update(self._table, to_save, self._changes, self._primary_key)
 
+        yield self.after_save(self._changes)
         self._changes = []
 
         if callback is None:
