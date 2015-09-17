@@ -105,11 +105,11 @@ class Model(object):
         return name.__name__.lower()
 
     @gen.coroutine
-    def before_save(self):
+    def before_save(self, changes):
         pass
 
     @gen.coroutine
-    def after_save(self):
+    def after_save(self, changes):
         pass
 
     @gen.coroutine
